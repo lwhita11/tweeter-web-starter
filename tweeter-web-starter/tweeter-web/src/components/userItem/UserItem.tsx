@@ -1,50 +1,16 @@
-import { AuthToken, FakeData, User } from "tweeter-shared";
-import { Link } from "react-router-dom";
-import { UserInfoContext } from "../userInfo/UserInfoProvider";
-import { useContext } from "react";
-import useToastListener from "../toaster/ToastListenerHook";
+import { Link, useNavigate } from "react-router-dom";
+import { AuthToken, User } from "tweeter-shared";
+import { useMessageActions } from "../toaster/MessageHooks";
+import { useUserInfo, useUserInfoActions } from "../userInfo/UserInfoHooks";
+import { useUserNavigation } from "../navHook/NavigationHook";
 
 interface Props {
-  value: User;
+  user: User;
+  featurePath: string;
 }
 
 const UserItem = (props: Props) => {
-  const { displayErrorMessage } = useToastListener();
-  const { setDisplayedUser, currentUser, authToken } =
-    useContext(UserInfoContext);
-
-  const navigateToUser = async (event: React.MouseEvent): Promise<void> => {
-    event.preventDefault();
-
-    try {
-      const alias = extractAlias(event.target.toString());
-
-      const user = await getUser(authToken!, alias);
-
-      if (!!user) {
-        if (currentUser!.equals(user)) {
-          setDisplayedUser(currentUser!);
-        } else {
-          setDisplayedUser(user);
-        }
-      }
-    } catch (error) {
-      displayErrorMessage(`Failed to get user because of exception: ${error}`);
-    }
-  };
-
-  const extractAlias = (value: string): string => {
-    const index = value.indexOf("@");
-    return value.substring(index);
-  };
-
-  const getUser = async (
-    authToken: AuthToken,
-    alias: string
-  ): Promise<User | null> => {
-    // TODO: Replace with the result of calling server
-    return FakeData.instance.findUserByAlias(alias);
-  };
+  const { navigateToUser } = useUserNavigation();
 
   return (
     <div className="col bg-light mx-0 px-0">
@@ -52,7 +18,7 @@ const UserItem = (props: Props) => {
         <div className="row mx-0 px-0">
           <div className="col-auto p-3">
             <img
-              src={props.value.imageUrl}
+              src={props.user.imageUrl}
               className="img-fluid"
               width="80"
               alt="Posting user"
@@ -61,14 +27,14 @@ const UserItem = (props: Props) => {
           <div className="col">
             <h2>
               <b>
-                {props.value.firstName} {props.value.lastName}
+                {props.user.firstName} {props.user.lastName}
               </b>{" "}
               -{" "}
               <Link
-                to={props.value.alias}
-                onClick={(event) => navigateToUser(event)}
+                to={`${props.featurePath}/${props.user.alias}`}
+                onClick={(event) => navigateToUser(event, props.featurePath)}
               >
-                {props.value.alias}
+                {props.user.alias}
               </Link>
             </h2>
           </div>

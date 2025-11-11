@@ -1,36 +1,37 @@
 import "./AppNavbar.css";
-import { useContext } from "react";
-import { UserInfoContext } from "../userInfo/UserInfoProvider";
 import { Container, Nav, Navbar } from "react-bootstrap";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import Image from "react-bootstrap/Image";
 import { AuthToken } from "tweeter-shared";
-import useToastListener from "../toaster/ToastListenerHook";
+import { useMessageActions } from "../toaster/MessageHooks";
+import { useUserInfo, useUserInfoActions } from "../userInfo/UserInfoHooks";
+import { NavBarPresenter, NavBarView } from "../../presenter/NavBarPresenter";
+import { useRef } from "react";
 
 const AppNavbar = () => {
   const location = useLocation();
-  const { authToken, clearUserInfo } = useContext(UserInfoContext);
-  const { displayInfoMessage, displayErrorMessage, clearLastInfoMessage } =
-    useToastListener();
+  const { authToken, displayedUser } = useUserInfo();
+  const { clearUserInfo } = useUserInfoActions();
+  const navigate = useNavigate();
+  const { displayInfoMessage, displayErrorMessage, deleteMessage } =
+    useMessageActions();
 
-  const logOut = async () => {
-    displayInfoMessage("Logging Out...", 0);
-
-    try {
-      await logout(authToken!);
-
-      clearLastInfoMessage();
-      clearUserInfo();
-    } catch (error) {
-      displayErrorMessage(
-        `Failed to log user out because of exception: ${error}`
-      );
-    }
+  const view: NavBarView = {
+    displayInfoMessage,
+    displayErrorMessage,
+    deleteMessage,
+    clearUserInfo,
+    navigateTo: navigate,
   };
 
-  const logout = async (authToken: AuthToken): Promise<void> => {
-    // Pause so we can see the logging out message. Delete when the call to the server is implemented.
-    await new Promise((res) => setTimeout(res, 1000));
+  const presenterRef = useRef<NavBarPresenter | null>(null);
+  if (!presenterRef.current) {
+    presenterRef.current = new NavBarPresenter(view);
+  }
+
+  const logOut = async () => {
+    if (!authToken) return;
+    presenterRef.current!.logOut(authToken);
   };
 
   return (
@@ -46,7 +47,7 @@ const AppNavbar = () => {
           <div className="d-flex flex-row">
             <div className="p-2">
               <NavLink className="brand-link" to="/">
-                <Image src={"./bird-white-32.png"} alt="" />
+                <Image src={"/bird-white-32.png"} alt="" />
               </NavLink>
             </div>
             <div id="brand-title" className="p-3">
@@ -60,19 +61,62 @@ const AppNavbar = () => {
         <Navbar.Collapse id="responsive-navbar-nav">
           <Nav className="ml-auto">
             <Nav.Item>
-              <NavLink to="/feed">Feed</NavLink>
+              <NavLink
+                to={`/feed/${displayedUser!.alias}`}
+                className={() =>
+                  location.pathname.startsWith("/feed/")
+                    ? "nav-link active"
+                    : "nav-link"
+                }
+              >
+                Feed
+              </NavLink>
             </Nav.Item>
             <Nav.Item>
-              <NavLink to="/story">Story</NavLink>
+              <NavLink
+                to={`/story/${displayedUser!.alias}`}
+                className={() =>
+                  location.pathname.startsWith("/story/")
+                    ? "nav-link active"
+                    : "nav-link"
+                }
+              >
+                Story
+              </NavLink>
             </Nav.Item>
             <Nav.Item>
-              <NavLink to="/followees">Followees</NavLink>
+              <NavLink
+                to={`/followees/${displayedUser!.alias}`}
+                className={() =>
+                  location.pathname.startsWith("/followees/")
+                    ? "nav-link active"
+                    : "nav-link"
+                }
+              >
+                Followees
+              </NavLink>
             </Nav.Item>
             <Nav.Item>
-              <NavLink to="/followers">Followers</NavLink>
+              <NavLink
+                to={`/followers/${displayedUser!.alias}`}
+                className={() =>
+                  location.pathname.startsWith("/followers/")
+                    ? "nav-link active"
+                    : "nav-link"
+                }
+              >
+                Followers
+              </NavLink>
             </Nav.Item>
             <Nav.Item>
-              <NavLink id="logout" onClick={logOut} to={location.pathname}>
+              <NavLink
+                id="logout"
+                onClick={logOut}
+                to={location.pathname}
+                className={({ isActive }) =>
+                  isActive ? "nav-link active" : "nav-link"
+                }
+              >
                 Logout
               </NavLink>
             </Nav.Item>

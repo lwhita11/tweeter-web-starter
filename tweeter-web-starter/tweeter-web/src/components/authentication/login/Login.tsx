@@ -1,16 +1,17 @@
 import "./Login.css";
 import "bootstrap/dist/css/bootstrap.css";
-import { useContext } from "react";
-import { UserInfoContext } from "../../userInfo/UserInfoProvider";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthenticationFormLayout from "../AuthenticationFormLayout";
-import { AuthToken, FakeData, User } from "tweeter-shared";
-import useToastListener from "../../toaster/ToastListenerHook";
-import AuthenticationFields from "../authItem/AuthenticationFields";
+import { AuthToken, User } from "tweeter-shared";
+import AuthenticationFields from "../AuthenticationFields";
+import { useMessageActions } from "../../toaster/MessageHooks";
+import { useUserInfoActions } from "../../userInfo/UserInfoHooks";
+import { LoginPresenter, LoginView } from "../../../presenter/LoginPresenter";
 
 interface Props {
   originalUrl?: string;
+  presenter?: LoginPresenter;
 }
 
 const Login = (props: Props) => {
@@ -20,56 +21,55 @@ const Login = (props: Props) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
-  const { updateUserInfo } = useContext(UserInfoContext);
-  const { displayErrorMessage } = useToastListener();
+  const { updateUserInfo } = useUserInfoActions();
+  const { displayErrorMessage } = useMessageActions();
 
   const checkSubmitButtonStatus = (): boolean => {
     return !alias || !password;
   };
 
-  const doLogin = async () => {
-    try {
-      setIsLoading(true);
+  const loginOnEnter = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (event.key == "Enter" && !checkSubmitButtonStatus()) {
+      doLogin();
+    }
+  };
 
-      const [user, authToken] = await login(alias, password);
-
+  const view: LoginView = {
+    displayErrorMessage: displayErrorMessage,
+    navigateToFeed: (user, authToken, rememberMe) => {
       updateUserInfo(user, user, authToken, rememberMe);
-
-      if (!!props.originalUrl) {
+      if (props.originalUrl) {
         navigate(props.originalUrl);
       } else {
-        navigate("/");
+        navigate(`/feed/${user.alias}`);
       }
-    } catch (error) {
-      displayErrorMessage(
-        `Failed to log user in because of exception: ${error}`
-      );
-    } finally {
-      setIsLoading(false);
-    }
+    },
   };
 
-  const login = async (
-    alias: string,
-    password: string
-  ): Promise<[User, AuthToken]> => {
-    // TODO: Replace with the result of calling the server
-    const user = FakeData.instance.firstUser;
+  const presenterRef = useRef<LoginPresenter | null>(null);
+  if (!presenterRef.current) {
+    presenterRef.current = props.presenter ?? new LoginPresenter(view);
+  }
 
-    if (user === null) {
-      throw new Error("Invalid alias or password");
-    }
-
-    return [user, FakeData.instance.authToken];
+  const doLogin = async () => {
+    setIsLoading(true);
+    await presenterRef.current!.login(alias, password, rememberMe);
+    setIsLoading(false);
   };
 
-  const inputFieldGenerator = () => {
+  const inputFieldFactory = () => {
     return (
-      <AuthenticationFields handleAuth = {doLogin} alias = {alias} setAlias={setAlias} password={password} setPassword={setPassword}/>
+      <AuthenticationFields
+        handleEnter={loginOnEnter}
+        alias={alias}
+        password={password}
+        setAlias={setAlias}
+        setPassword={setPassword}
+      ></AuthenticationFields>
     );
   };
 
-  const switchAuthenticationMethodGenerator = () => {
+  const switchAuthenticationMethodFactory = () => {
     return (
       <div className="mb-3">
         Not registered? <Link to="/register">Register</Link>
@@ -82,8 +82,8 @@ const Login = (props: Props) => {
       headingText="Please Sign In"
       submitButtonLabel="Sign in"
       oAuthHeading="Sign in with:"
-      inputFieldGenerator={inputFieldGenerator}
-      switchAuthenticationMethodGenerator={switchAuthenticationMethodGenerator}
+      inputFieldFactory={inputFieldFactory}
+      switchAuthenticationMethodFactory={switchAuthenticationMethodFactory}
       setRememberMe={setRememberMe}
       submitButtonDisabled={checkSubmitButtonStatus}
       isLoading={isLoading}
