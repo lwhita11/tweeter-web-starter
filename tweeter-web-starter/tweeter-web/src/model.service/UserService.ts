@@ -1,28 +1,50 @@
 import { Buffer } from "buffer";
-import { AuthToken, User, FakeData } from "tweeter-shared";
+import {
+  AuthToken,
+  User,
+  FakeData,
+  GetUserRequest,
+  LoginRequest,
+  RegisterRequest,
+  IsFollowerRequest,
+  FollowActionRequest,
+  LogoutRequest,
+} from "tweeter-shared";
 import { Service } from "./Service";
+import { ServerFacade } from "../model.network/ServerFacade";
 
 export class UserService implements Service {
+  private serverFacade;
+
+  constructor() {
+    this.serverFacade = new ServerFacade();
+  }
   public async getUser(
     authToken: AuthToken,
     alias: string
   ): Promise<User | null> {
-    // TODO: Replace with the result of calling server
-    return FakeData.instance.findUserByAlias(alias);
+    const request: GetUserRequest = {
+      alias: alias,
+      token: authToken.token,
+    };
+    console.log("userAlias: ", alias);
+    return this.serverFacade.getUser(request);
   }
 
   public async login(
     alias: string,
     password: string
   ): Promise<[User, AuthToken]> {
-    // TODO: Replace with the result of calling the server
-    const user = FakeData.instance.firstUser;
+    const request: LoginRequest = {
+      alias: alias,
+      password: password,
+    };
 
-    if (user === null) {
-      throw new Error("Invalid alias or password");
-    }
+    console.log("logging in with alias: ", alias);
 
-    return [user, FakeData.instance.authToken];
+    const res = await this.serverFacade.login(request);
+    console.log("login res: ", res);
+    return res;
   }
 
   public async register(
@@ -33,18 +55,16 @@ export class UserService implements Service {
     userImageBytes: Uint8Array,
     imageFileExtension: string
   ): Promise<[User, AuthToken]> {
-    // Not neded now, but will be needed when you make the request to the server in milestone 3
-    const imageStringBase64: string =
-      Buffer.from(userImageBytes).toString("base64");
-
-    // TODO: Replace with the result of calling the server
-    const user = FakeData.instance.firstUser;
-
-    if (user === null) {
-      throw new Error("Invalid registration");
-    }
-
-    return [user, FakeData.instance.authToken];
+    const base64String = Buffer.from(userImageBytes).toString("base64");
+    const request: RegisterRequest = {
+      firstName: firstName,
+      lastName: lastName,
+      alias: alias,
+      password: password,
+      userImageBytes: base64String,
+      imageFileExtension: imageFileExtension,
+    };
+    return this.serverFacade.register(request);
   }
 
   public async getIsFollowerStatus(
@@ -52,28 +72,40 @@ export class UserService implements Service {
     user: User,
     selectedUser: User
   ): Promise<boolean> {
-    // TODO: Replace with the result of calling server
-    return FakeData.instance.isFollower();
+    const request: IsFollowerRequest = {
+      user: user,
+      selectedUser: selectedUser,
+      token: authToken.token,
+    };
+    return this.serverFacade.getIsFollowerStatus(request);
   }
 
   public async getFolloweeCount(
     authToken: AuthToken,
     user: User
   ): Promise<number> {
-    // TODO: Replace with the result of calling server
-    return FakeData.instance.getFolloweeCount(user.alias);
+    const request: FollowActionRequest = {
+      user: user,
+      token: authToken.token,
+    };
+    return this.serverFacade.getFolloweeCount(request);
   }
 
   public async getFollowerCount(
     authToken: AuthToken,
     user: User
   ): Promise<number> {
-    // TODO: Replace with the result of calling server
-    return FakeData.instance.getFollowerCount(user.alias);
+    const request: FollowActionRequest = {
+      user: user,
+      token: authToken.token,
+    };
+    return this.serverFacade.getFollowerCount(request);
   }
 
   public async logout(authToken: AuthToken): Promise<void> {
-    // Pause so we can see the logging out message. Delete when the call to the server is implemented.
-    await new Promise((res) => setTimeout(res, 1000));
+    const request: LogoutRequest = {
+      token: authToken.token,
+    };
+    this.serverFacade.logout(request);
   }
 }
