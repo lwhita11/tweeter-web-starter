@@ -257,23 +257,29 @@ export class ServerFacade {
   }
 
   public async login(request: LoginRequest): Promise<[User, AuthToken]> {
-    const response = await this.clientCommunicator.doPost<
-      LoginRequest,
-      LoginResponse
-    >(request, "/user/login");
+    try {
+      const response = await this.clientCommunicator.doPost<
+        LoginRequest,
+        LoginResponse
+      >(request, "/user/login");
 
-    const user = User.fromDto(response.user);
-    const authToken = new AuthToken(response.authToken, Date.now()); // CHANGE THIS WHEN IMPLEMENTING DB . Pass timestamp with any authToken response
-
-    // Handle errors
-    if (response.success) {
-      if (user == null) {
-        throw new Error(`No user found`);
+      const user = User.fromDto(response.user);
+      const authToken = new AuthToken(response.authToken, Date.now()); // CHANGE THIS WHEN IMPLEMENTING DB . Pass timestamp with any authToken response
+      if (!response.success) {
+        throw new Error();
       }
-      return [user, authToken];
-    } else {
-      console.error(response);
-      throw new Error(response.message ?? undefined);
+      // Handle errors
+      if (response.success) {
+        if (user == null) {
+          throw new Error(`No user found`);
+        }
+        return [user, authToken];
+      } else {
+        console.error(response);
+        throw new Error(response.message ?? undefined);
+      }
+    } catch (error: any) {
+      throw new Error("Incorrect Username or Password");
     }
   }
 
@@ -291,23 +297,32 @@ export class ServerFacade {
   }
 
   public async register(request: RegisterRequest): Promise<[User, AuthToken]> {
-    const response = await this.clientCommunicator.doPost<
-      RegisterRequest,
-      RegisterResponse
-    >(request, "/user/register");
+    try {
+      const response = await this.clientCommunicator.doPost<
+        RegisterRequest,
+        RegisterResponse
+      >(request, "/user/register");
 
-    const user = User.fromDto(response.user);
-    const authToken = new AuthToken(response.authToken, Date.now()); // CHANGE THIS WHEN IMPLEMENTING DB . Pass timestamp with any authToken responses
+      const user = User.fromDto(response.user);
+      const authToken = new AuthToken(response.authToken, Date.now());
 
-    // Handle errors
-    if (response.success) {
-      if (user == null) {
-        throw new Error(`No user found`);
+      if (!response.success) {
+        throw new Error(response.message ?? "Registration failed");
       }
-      return [user, authToken];
-    } else {
-      console.error(response);
-      throw new Error(response.message ?? undefined);
+      // Handle errors
+      if (response.success) {
+        if (user == null) {
+          throw new Error(`No user found`);
+        }
+        return [user, authToken];
+      } else {
+        console.error(response);
+        throw new Error(response.message ?? undefined);
+      }
+    } catch (error: any) {
+      const msg = "Alias is taken";
+
+      throw new Error(msg);
     }
   }
 }

@@ -54,7 +54,7 @@ export class FollowService implements Service {
     userToFollow: User
   ): Promise<[followerCount: number, followeeCount: number]> {
     const request: FollowActionRequest = {
-      user: userToFollow,
+      user: userToFollow.dto,
       token: authToken.token,
     };
 
@@ -66,10 +66,10 @@ export class FollowService implements Service {
     userToUnfollow: User
   ): Promise<[followerCount: number, followeeCount: number]> {
     const request: FollowActionRequest = {
-      user: userToUnfollow,
+      user: userToUnfollow.dto,
       token: authToken.token,
     };
 
-    return this.serverFacade.follow(request);
+    return await this.serverFacade.unfollow(request);
   }
 }

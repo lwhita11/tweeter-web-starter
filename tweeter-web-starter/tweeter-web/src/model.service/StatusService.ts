@@ -4,6 +4,7 @@ import {
   FakeData,
   PagedStatusItemRequest,
   PostStatusRequest,
+  StatusDto,
 } from "tweeter-shared";
 import { Service } from "./Service";
 import { ServerFacade } from "../model.network/ServerFacade";
@@ -49,8 +50,9 @@ export class StatusService implements Service {
     authToken: AuthToken,
     newStatus: Status
   ): Promise<void> {
+    const statusDto: StatusDto = newStatus.dto;
     const request: PostStatusRequest = {
-      status: newStatus,
+      status: statusDto,
       token: authToken.token,
     };
     await this.serverFacade.postStatus(request);

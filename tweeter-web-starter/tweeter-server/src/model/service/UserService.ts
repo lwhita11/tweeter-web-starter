@@ -1,30 +1,55 @@
 import { Buffer } from "buffer";
 import { AuthToken, User, FakeData, UserDto } from "tweeter-shared";
 import { Service } from "./Service";
+import { DaoFactory } from "../dao/DaoFactory";
+import { UserDao } from "../dao/UserDao";
+import { AuthDao } from "../dao/AuthDao";
+import bcrypt from "bcryptjs";
+import { ImageDao } from "../dao/ImageDao";
+import { FollowDao } from "../dao/FollowDao";
 
 export class UserService implements Service {
+  private userDao: UserDao;
+  private authDao: AuthDao;
+  private followDao: FollowDao;
+  private imageDao: ImageDao;
+
+  constructor(factory: DaoFactory) {
+    this.userDao = factory.getUserDao();
+    this.authDao = factory.getAuthDao();
+    this.followDao = factory.getFollowDao();
+    this.imageDao = factory.getImageDao();
+  }
+
   public async getUser(token: string, alias: string): Promise<UserDto | null> {
-    // TODO: Replace with the result of calling server
-    return FakeData.instance.findUserByAlias(alias)!.dto;
+    return this.userDao.getUser(alias);
   }
 
   public async login(
     alias: string,
     password: string
   ): Promise<[UserDto, string]> {
-    // TODO: Replace with the result of calling the server
-    return this.getFakeData();
+    const storedPwd = await this.userDao.getPasswordHash(alias);
+    this.checkAuthError(storedPwd);
+    const isValid = await bcrypt.compare(password, storedPwd!);
+    if (!isValid) {
+      throw new Error("Alias or Password is incorrect");
+    }
+    const authToken = await this.authDao.createAuthToken(alias);
+    const user = await this.userDao.getUser(alias);
+    this.checkAuthError(user);
+    return [user!, authToken];
   }
 
-  private async getFakeData(): Promise<[UserDto, string]> {
-    const user = FakeData.instance.firstUser;
-
-    if (user === null) {
-      throw new Error("Invalid alias or password");
+  private checkAuthError(obj: any): void {
+    if (obj == null) {
+      throw new Error("Alias or Password is incorrect");
     }
-    const userDto: UserDto = user.dto;
+  }
 
-    return [userDto, FakeData.instance.authToken.token];
+  private async hashPassword(textPassword: string): Promise<string> {
+    const salt = await bcrypt.genSalt();
+    return bcrypt.hash(textPassword, salt);
   }
 
   public async register(
@@ -35,10 +60,30 @@ export class UserService implements Service {
     userImageBytes: string,
     imageFileExtension: string
   ): Promise<[UserDto, string]> {
-    // Not neded now, but will be needed when you make the request to the server in milestone 3
-    const imageBuffer = Buffer.from(userImageBytes, "base64");
+    if ((await this.userDao.getUser(alias)) != null) {
+      throw new Error("Alias is taken");
+    }
+    const hashedPwd = await this.hashPassword(password);
+    const imageBytes = Uint8Array.from(Buffer.from(userImageBytes, "base64"));
+    const imageUrl = await this.imageDao.uploadImage(
+      alias,
+      imageBytes,
+      imageFileExtension
+    );
+    await this.userDao.createUser(
+      firstName,
+      lastName,
+      alias,
+      hashedPwd,
+      imageUrl
+    );
+    const authToken = await this.authDao.createAuthToken(alias);
 
-    return this.getFakeData();
+    const user = await this.userDao.getUser(alias);
+    if (!user) {
+      throw new Error("User not saved");
+    }
+    return [user, authToken];
   }
 
   public async getIsFollowerStatus(
@@ -46,22 +91,18 @@ export class UserService implements Service {
     user: UserDto,
     selectedUser: UserDto
   ): Promise<boolean> {
-    // TODO: Replace with the result of calling server
-    return FakeData.instance.isFollower();
+    return this.followDao.isFollower(user.alias, selectedUser.alias);
   }
 
   public async getFolloweeCount(token: string, user: UserDto): Promise<number> {
-    // TODO: Replace with the result of calling server
-    return FakeData.instance.getFolloweeCount(user.alias);
+    return this.followDao.getFolloweeCount(user.alias);
   }
 
   public async getFollowerCount(token: string, user: UserDto): Promise<number> {
-    // TODO: Replace with the result of calling server
-    return FakeData.instance.getFollowerCount(user.alias);
+    return this.followDao.getFollowerCount(user.alias);
   }
 
   public async logout(authToken: string): Promise<void> {
-    // Pause so we can see the logging out message. Delete when the call to the server is implemented.
-    await new Promise((res) => setTimeout(res, 1000));
+    await this.authDao.deleteAuthToken(authToken);
   }
 }

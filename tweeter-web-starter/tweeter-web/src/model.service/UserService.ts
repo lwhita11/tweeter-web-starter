@@ -73,8 +73,8 @@ export class UserService implements Service {
     selectedUser: User
   ): Promise<boolean> {
     const request: IsFollowerRequest = {
-      user: user,
-      selectedUser: selectedUser,
+      user: user.dto,
+      selectedUser: selectedUser.dto,
       token: authToken.token,
     };
     return this.serverFacade.getIsFollowerStatus(request);
@@ -85,7 +85,7 @@ export class UserService implements Service {
     user: User
   ): Promise<number> {
     const request: FollowActionRequest = {
-      user: user,
+      user: user.dto,
       token: authToken.token,
     };
     return this.serverFacade.getFolloweeCount(request);
@@ -96,7 +96,7 @@ export class UserService implements Service {
     user: User
   ): Promise<number> {
     const request: FollowActionRequest = {
-      user: user,
+      user: user.dto,
       token: authToken.token,
     };
     return this.serverFacade.getFollowerCount(request);
@@ -106,6 +106,6 @@ export class UserService implements Service {
     const request: LogoutRequest = {
       token: authToken.token,
     };
-    this.serverFacade.logout(request);
+    await this.serverFacade.logout(request);
   }
 }

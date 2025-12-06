@@ -16,8 +16,8 @@ export class LoginPresenter extends Presenter<LoginView> {
   }
 
   public async login(alias: string, password: string, rememberMe: boolean) {
-    this.doFailureReportingOperation(async () => {
-      this.doAuthenticationOperation(
+    await this.doFailureReportingOperation(async () => {
+      await this.doAuthenticationOperation(
         async () => {
           return this.userService.login(alias, password);
         },
@@ -36,8 +36,8 @@ export class LoginPresenter extends Presenter<LoginView> {
     imageFileExtension: string,
     rememberMe: boolean
   ) {
-    this.doFailureReportingOperation(async () => {
-      this.doAuthenticationOperation(
+    await this.doFailureReportingOperation(async () => {
+      await this.doAuthenticationOperation(
         async () => {
           return this.userService.register(
             firstName,
